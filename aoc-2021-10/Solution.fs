@@ -12,14 +12,20 @@ let printCharList xs =
 let findError (s:string) =
     let rec loop acc str =
         match acc, str with
+        // stack empty at end of string
         | [], []        -> Valid
+        // stack not empty at end of string
         | acc, []       -> Incomplete (printCharList acc)
+        // got opening char: put the closing char on the stack
         | _, '['::stail -> loop (']'::acc) stail
         | _, '('::stail -> loop (')'::acc) stail
         | _, '{'::stail -> loop ('}'::acc) stail
         | _, '<'::stail -> loop ('>'::acc) stail
+        // got expected closing char: continue with rest
         | a::atail, s::stail when a=s -> loop atail stail
+        // got any other char
         | _::_, s::_                  -> Unexpected s
+        // got something completely unexpected
         | _                           -> failwith "boom!"
     loop [] (Seq.toList s)
 
