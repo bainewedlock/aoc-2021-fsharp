@@ -1,0 +1,4 @@
+module Demoinput
+
+let demoinput = ""
+
