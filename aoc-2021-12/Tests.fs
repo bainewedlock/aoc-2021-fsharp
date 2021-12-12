@@ -17,73 +17,66 @@ let all =
                 links.[6] =! (SmallCave "b", EndCave)
             }
             test "setup map" {
-                let map = demoinput |> parse |> setupMap
+                let map = demoinput |> parse |> setupMap 1
                 map.currentCave =! StartCave
                 map.path =! [StartCave]
-                map.remainingCaves.Count =! 5
                 map.links.Contains (SmallCave "b", SmallCave "d") =! true
                 map.links.Contains (SmallCave "d", SmallCave "b") =! true
+                map.remaining.Item (SmallCave "b") =! 1
             }
             test "options" {
                 let map =
-                    {
-                        currentCave = StartCave
-                        path = [StartCave]
-                        remainingCaves = Set [ EndCave; SmallCave "a" ]
+                    { defaultMap with
                         links = Set [StartCave,EndCave]
-                        visitCount =  Map [EndCave, 0]
+                        remaining = Map [ EndCave, 1 
+                                          SmallCave "a", 1]
                     }
-                let os = options 1 map
+                let os = options map
                 os.Length =! 1
                 os.[0].currentCave =! EndCave
                 os.[0].path =! [EndCave; StartCave]
-                os.[0].remainingCaves =! Set [ SmallCave "a" ]
+                os.[0].remaining.TryFind (EndCave) =! None
+                os.[0].remaining.Item (SmallCave "a") =! 1
             }
             test "small cave only once" {
                 let map =
-                    {
-                        currentCave = StartCave
-                        path = [StartCave]
-                        remainingCaves = Set [ SmallCave "a" ]
+                    { defaultMap with
                         links = Set [StartCave,SmallCave "a"]
-                        visitCount = Map [SmallCave "a", 0]
+                        remaining = Map [
+                            SmallCave "a", 1 ]
                     }
-                let os = options 1 map
+                let os = options map
                 os.Length =! 1
                 os.[0].currentCave =! SmallCave "a"
                 os.[0].path =! [SmallCave "a"; StartCave]
-                //os.[0].remainingCaves =! Set []
             }
             test "big cave repeatedly" {
                 let map =
-                    {
-                        currentCave = StartCave
-                        path = [StartCave]
-                        remainingCaves = Set [ BigCave "A" ]
+                    { defaultMap with
                         links = Set [StartCave,BigCave "A"]
-                        visitCount =  Map [BigCave "A", 0]
+                        remaining = Map [ BigCave"A", 1]
                     }
-                let os = options 1 map
+                let os = options map
                 os.Length =! 1
                 os.[0].currentCave =! BigCave "A"
                 os.[0].path =! [BigCave "A"; StartCave]
-                os.[0].remainingCaves =! Set [BigCave "A"]
+                os.[0].remaining.Item (BigCave "A") =! 1
             }
             test "stop at endcave" {
                 let map =
-                    {
-                        currentCave = EndCave
-                        path = [EndCave]
-                        remainingCaves = Set [ BigCave "A" ]
+                    { defaultMap with
                         links = Set [EndCave,BigCave "A"]
-                        visitCount = Map.empty
+                        remaining = Map.empty
                     }
-                let os = options 1 map
+                let os = options map
                 os.Length =! 0
             }
             test "paths" {
-                let ps = demoinput |> parse |> paths 1 |> Seq.toList
-                ps.Length =! 10 
+                demoinput
+                |> parse
+                |> setupMap 1
+                |> paths
+                |> Seq.length =! 10
             }
             test "demo #2" {
                 @"dc-end
@@ -100,12 +93,7 @@ let all =
             }
         ]
         testList "part 2" [
-            test "setup map" {
-                let map = demoinput |> parse |> setupMap
-                map.visitCount.Item (SmallCave "b") =! 0
-            }
             test "demoinput" {
-                let foo =debug demoinput
                 solve2 demoinput =! 36
                 solve2 "start-A
                         start-b
@@ -113,23 +101,22 @@ let all =
                         A-b
                         b-d
                         A-end
-                        b-end" =! 36 // nur 1 small cave doppelt!
+                        b-end" =! 36
             }
-            test "no more then one small cave repeats" {
+            test "after small cave twice allow other only 1" {
                 let map =
-                    {
-                        currentCave = StartCave
-                        path = [StartCave]
-                        remainingCaves = Set [ SmallCave "a" ]
-                        links = Set [ StartCave, SmallCave "a" ]
-                        visitCount =  Map [ SmallCave "a", 0
-                                            SmallCave "c", 2]
+                    { defaultMap with
+                        links = Set [StartCave,SmallCave "a"]
+                        path = [SmallCave "a"]
+                        remaining = Map [
+                            SmallCave "a", 1
+                            SmallCave "b", 2
+                        ]
                     }
-
-                let os = options 2 map
+                let os = options map
                 os.Length =! 1
                 os.[0].currentCave =! SmallCave "a"
-                os.[0].path =! [SmallCave "a"; StartCave]
+                os.[0].remaining.Item (SmallCave "b") =! 1
             }
         ]
     ]

@@ -8,9 +8,25 @@ type Cave =
     | SmallCave of string
     | EndCave
 
+type Link = Cave * Cave
+
+type Map = {
+    currentCave : Cave
+    path : Cave List
+    links : Link Set
+    remaining : Map<Cave, int>
+}
+
+let defaultMap = {
+    currentCave = StartCave
+    path = [StartCave]
+    links = Set.empty
+    remaining = Map.empty
+}
+
 let parseCave = function
-    | "start" -> StartCave
-    | "end"   -> EndCave
+    | "start"                    -> StartCave
+    | "end"                      -> EndCave
     | x when Char.IsLower(x.[0]) -> SmallCave x
     | x                          -> BigCave x
 
@@ -28,16 +44,6 @@ let parse (input:string) =
     |> Array.toList
     |> List.map parseLine
 
-type Link = Cave * Cave
-
-type Map = {
-    currentCave : Cave
-    path : Cave List
-    remainingCaves : Cave Set 
-    visitCount : Map<Cave, int>
-    links : Link Set
-}
-
 let isSmallCave = function
     | SmallCave _ -> true
     | _           -> false
@@ -50,88 +56,77 @@ let isBigCave = function
     | BigCave _ -> true
     | _         -> false
 
-let setupMap (links:Link List) =
-    let remaining =
-        links
-        |> List.collect (fun (a,b) -> [a;b])
-        |> List.filter (isStartCave >> not)
-        |> Set
-    let revLinks =
-        links
-        |> List.map (fun (a,b) -> b, a)
-    let visits =
-        remaining
-        |> Seq.map (fun c -> c, 0)
-        |> Map
-    {
-        currentCave = StartCave
-        path = [StartCave]
-        remainingCaves = remaining
-        links = List.append links revLinks |> Set
-        visitCount = visits
+
+let setupMap smallCaveLimit (links:Link List) =
+    let setupCave = function
+        | StartCave   -> None
+        | SmallCave x -> Some (SmallCave x, smallCaveLimit)
+        | x           -> Some (x, 1)
+    let swap (a,b) = b,a
+    let revLinks = List.map swap links
+    let toList (a,b) = [a;b]
+    { defaultMap with
+        links = Set (links @ revLinks)
+        remaining =
+            links |> List.collect toList |> List.choose setupCave |> Map
     }
 
-let options smallCaveLimit map = [
-    if map.currentCave = EndCave then () else
-    let linkedCaves =
-        map.remainingCaves
-        |> Seq.filter (fun c -> map.links.Contains (map.currentCave, c))
-    for c in linkedCaves do
-        let alreadyDouble =
-            map.visitCount
-            |> Map.exists (fun k v -> isSmallCave k &&  v > 1)
-        let visitCount = map.visitCount.Item c + 1
-        if isSmallCave c && visitCount>1 &&
-            (smallCaveLimit=1 || alreadyDouble) then () else
-        let remaining =
-            match c with
-            | SmallCave _ -> map.remainingCaves
-            | BigCave _ -> map.remainingCaves
-            | _         -> map.remainingCaves.Remove c
-        yield { map with
-                    currentCave = c
-                    path = c::map.path
-                    remainingCaves = remaining
-                    visitCount = map.visitCount.Add(c, visitCount)
-        }
-]
+let reduceSpecificCave c (remaining:Map<Cave, int>) =
+    let f = function
+        | Some x when isBigCave c -> Some x
+        | Some 1                  -> None
+        | Some x                  -> Some (x-1)
+        | None                    -> None
+    remaining.Change(c, f)
 
+let reduceAllSmallCaves (remaining:Map<Cave, int>) =
+    let f = function
+        | SmallCave _, 1 -> None
+        | SmallCave x, v -> Some (SmallCave x, v-1)
+        | x              -> Some x
+    remaining |> Map.toSeq |> Seq.choose f |> Map
 
-let paths smallCaveLimit (links:Link list) =
-    let rec loop map = [
-        for o in options smallCaveLimit map do
-            if o.currentCave = EndCave
-            then yield o
-            else yield! loop o
-    ]
-    loop (setupMap links)
-    
+let visitCount c (map:Map) =
+    map.path
+    |> List.filter ((=)c)
+    |> List.length
+    |> (+)1
 
-let solve (input:string) =
+let linkedCaves (map:Map) =
+    map.remaining
+    |> Seq.toList
+    |> List.choose (fun m ->
+        if map.links.Contains (map.currentCave, m.Key)
+        then Some m.Key else None)
+
+let remaining c (map:Map) =
+    if isSmallCave c && visitCount c map > 1
+    then reduceAllSmallCaves map.remaining
+    else reduceSpecificCave c map.remaining
+ 
+let gotoCave map c =
+    { map with
+        currentCave = c
+        path = c::map.path
+        remaining = remaining c map }
+
+let options map =
+    if map.currentCave = EndCave then [] else
+    linkedCaves map
+    |> List.map (gotoCave map)
+
+let rec paths map = [
+    for o in options map do
+        if o.currentCave = EndCave
+        then yield o
+        else yield! paths o ]
+
+let genericSolve smallCaveLimit (input:string) =
     input
     |> parse
-    |> paths 1
+    |> setupMap smallCaveLimit
+    |> paths
     |> Seq.length
 
-let debug input =
-    input
-    |> parse
-    |> paths 2
-    |> List.map (fun m ->
-        m.path
-        |> List.rev
-        |> List.map (function 
-            | SmallCave x -> x
-            | BigCave x -> x
-            | EndCave -> "end"
-            | StartCave -> "start")
-        |> String.concat ",")
-
-
-
-let solve2 (input:string) =
-    input
-    |> parse
-    |> paths 2
-    |> Seq.length
-
+let solve  = genericSolve 1
+let solve2 = genericSolve 2
