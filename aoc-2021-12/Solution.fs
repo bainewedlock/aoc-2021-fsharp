@@ -14,15 +14,15 @@ type Map = {
     currentCave : Cave
     path : Cave List
     links : Link Set
-    remaining : Map<Cave, int>
-}
+    remaining : Map<Cave, int> }
 
-let defaultMap = {
-    currentCave = StartCave
-    path = [StartCave]
-    links = Set.empty
-    remaining = Map.empty
-}
+let defaultMap =
+    {
+        currentCave = StartCave
+        path        = [StartCave]
+        links       = Set.empty
+        remaining   = Map.empty
+    }
 
 let parseCave = function
     | "start"                    -> StartCave
@@ -30,32 +30,18 @@ let parseCave = function
     | x when Char.IsLower(x.[0]) -> SmallCave x
     | x                          -> BigCave x
 
-let tupleFromArray = function
-    | [|a;b|] -> a,b
-    | _       -> failwith "unexpected"
-
 let parseLine (line:string) =
+    let tuple = function
+        | [|a;b|] -> a,b
+        | _       -> failwith "unexpected"
     line.Trim().Split '-'
     |> Array.map parseCave
-    |> tupleFromArray
+    |> tuple
 
 let parse (input:string) =
     input.Split "\r\n"
     |> Array.toList
     |> List.map parseLine
-
-let isSmallCave = function
-    | SmallCave _ -> true
-    | _           -> false
-
-let isStartCave = function
-    | StartCave -> true
-    | _         -> false
-
-let isBigCave = function
-    | BigCave _ -> true
-    | _         -> false
-
 
 let setupMap smallCaveLimit (links:Link List) =
     let setupCave = function
@@ -68,15 +54,19 @@ let setupMap smallCaveLimit (links:Link List) =
     { defaultMap with
         links = Set (links @ revLinks)
         remaining =
-            links |> List.collect toList |> List.choose setupCave |> Map
+            links
+            |> List.collect toList
+            |> List.choose setupCave 
+            |> Map
     }
 
 let reduceSpecificCave c (remaining:Map<Cave, int>) =
-    let f = function
-        | Some x when isBigCave c -> Some x
-        | Some 1                  -> None
-        | Some x                  -> Some (x-1)
-        | None                    -> None
+    let f value =
+        match c, value with
+        | BigCave _, Some x -> Some x
+        | _,         Some 1 -> None
+        | _,         Some x -> Some (x-1)
+        | _,         None   -> None
     remaining.Change(c, f)
 
 let reduceAllSmallCaves (remaining:Map<Cave, int>) =
@@ -100,9 +90,9 @@ let linkedCaves (map:Map) =
         then Some m.Key else None)
 
 let remaining c (map:Map) =
-    if isSmallCave c && visitCount c map > 1
-    then reduceAllSmallCaves map.remaining
-    else reduceSpecificCave c map.remaining
+    match c, visitCount c map with
+    | SmallCave _, x when x > 1 -> reduceAllSmallCaves map.remaining
+    | _                         -> reduceSpecificCave c map.remaining
  
 let gotoCave map c =
     { map with
