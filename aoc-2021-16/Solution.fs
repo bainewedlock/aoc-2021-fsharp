@@ -17,50 +17,44 @@ let parse (input:string) =
     |> Seq.map (fun c -> Convert.ToInt32(string c, 16))
     |> Seq.map (fun x -> Convert.ToString(x, 2).PadLeft(4, '0'))
     |> String.concat ""
-    |> fun d -> { data = d; lengthType = [Count 1]; versions = [] }
-
-let decrease offset = function
-    | [] -> []
-    | Count 1::rest                 -> rest
-    | Count x::rest                 -> Count (x-1)::rest
-    | Fixed x::rest when x = offset -> rest
-    | Fixed x::rest                 -> Fixed (x-offset)::rest
 
 let bin2int (s:string) = Convert.ToInt32(s, 2)
+let bin2int64 (s:string) = Convert.ToUInt64(s, 2)
 
-let step state =
-    if state.data.Length < 11 then { state with data = "" } else
-    let version = state.data.Substring(0,3)
-    let dataType = state.data.Substring(3,3)
-    if dataType = "100" then
+type Token =
+    | Version    of int
+    | Literal    of uint64
+    | OperatorNo of int
+
+let rec describe (bits:string) = [
+    if bits.Length < 11 then () else
+    yield (Version (bits.Substring(0,3) |> bin2int))
+    let dataType = bits.Substring(3,3) |> bin2int
+    if dataType = 4 then
         let rec extractNumbers (s:string) = [
             yield s.Substring(1,4)
             if s.[0] = '1' then yield! extractNumbers (s.Substring 5) ]
-        let numbers = extractNumbers (state.data.Substring 6)
+        let numbers = extractNumbers (bits.Substring 6)
+        yield (Literal (numbers |> String.concat "" |> bin2int64))
         let offset = 6 + numbers.Length * 5
-        { state with
-            data = state.data.Substring(offset)
-            versions = version::state.versions
-            lengthType = decrease offset state.lengthType
-        }
+        yield! describe (bits.Substring offset)
     else
-        let l, lt =
-            match state.data.[6] with
-            | '0' -> 15, state.data.Substring(7, 15) |> bin2int |> Fixed
-            | '1' -> 11, state.data.Substring(7, 11) |> bin2int |> Count
-            | _   -> failwith "unexpected"
-        { state with
-            data = state.data.Substring(7 + l)
-            versions = version::state.versions
-            lengthType = [lt]
-        }
+        let l =
+            match bits.[6] with
+            | '0' -> 15
+            | '1' -> 11
+        let offset = 7 + l
+        yield (OperatorNo dataType)
+        yield! describe (bits.Substring offset)
+]
 
 let solve (input:string) =
-    let rec loop state =
-        if state.data = "" then state else
-        loop (step state)
-    let result = loop (parse input)
-    result.versions
-    |> List.sumBy bin2int
+    input
+    |> parse
+    |> describe
+    |> List.choose (function
+        | Version x -> Some x
+        | _         -> None )
+    |> List.sum
 
 
