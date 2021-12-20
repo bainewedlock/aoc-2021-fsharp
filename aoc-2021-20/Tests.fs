@@ -50,7 +50,11 @@ let all =
             test "solve demoinput" {
                 solve demoinput =! 35
             }
+            test "solve demoinput part 2" {
+                solve2 demoinput =! 3351
+            }
         ]
+
     ]
 
 

@@ -93,3 +93,10 @@ let solve input =
     |> enhanceImage
     |> fun s -> s.cells.Count
 
+let solve2 input =
+    let rec loop n image = 
+        if n = 0 then image else loop (n-1) (enhanceImage image)
+    loop 50 (parse input)
+    |> fun s -> s.cells.Count
+
+
