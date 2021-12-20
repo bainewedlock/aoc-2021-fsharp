@@ -2,101 +2,85 @@ module Solution
 
 open System
 
-type Point = int * int
+type Pixel = int * int
 
 type Image = {
-    bits : Map<int, int>
-    cells: Point Set
-    isInverted : bool
-}
+    enhancementRules : Map<int, int>
+    pixels: Pixel Set
+    isInverted : bool }
 
 let charToBit = function
     | '#' -> 1
     | '.' -> 0
 
-[<RequireQualifiedAccess>]
-module Image =
-    let countCells input =
-        if input.isInverted then failwith "counting cells on inverted image"
-        input.cells.Count
-    let containsPixel p input =
-        if input.isInverted then
-            if input.cells.Contains p then false
-            else true
-        else
-            if input.cells.Contains p then true
-            else false
+let parseRules =
+    Seq.indexed >> Seq.map (fun (i,c) -> i, charToBit c) >> Map
 
-let parse (input:string) =
+let parsePixel y = function
+    | x, '#' -> Some (x,y)
+    | _      -> None
+
+let parseLine (y, line) =
+    line
+    |> Seq.toList
+    |> List.indexed
+    |> List.choose (parsePixel y)
+
+let parsePixels = List.indexed >> List.collect parseLine >> Set
+
+let parseInput (input:string) =
     let lines = input.Split "\r\n" |> Array.toList
     {
         isInverted = false
-        bits =
-            lines.[0]
-            |> Seq.indexed
-            |> Seq.map (fun (i,c) ->
-                i, charToBit c)
-            |> Map
-        cells =
-            lines
-            |> List.skip 2
-            |> List.indexed
-            |> List.collect (fun (y,line) -> 
-                line
-                |> Seq.toList
-                |> List.indexed
-                |> List.choose (fun (x, c) ->
-                    if (c = '#') then Some (x,y) else None))
-            |> Set
+        enhancementRules = parseRules lines.Head
+        pixels = lines |> List.skip 2 |> parsePixels
     }
 
 let boolToBit = function
     | false -> 0
     | true  -> 1
 
-let enhancePoint (x0,y0) input =
-    let bit =
-        [ for i in 0..8 do yield (x0-1+i%3, y0-1+i/3) ]
-        |> List.map (fun p -> Image.containsPixel p input)
-        |> List.map (boolToBit >> string)
-        |> String.concat ""
-        |> fun s -> Convert.ToInt32(s, 2)
-    input.bits.Item bit
+let boolsToInt =
+    List.map (boolToBit >> string)
+    >> String.concat ""
+    >> fun s -> Convert.ToInt32(s, 2)
 
+let squareAround (x,y) = [ for i in 0..8 do yield (x-1+i%3, y-1+i/3) ]
 
-let findMinMax : int seq -> int * int =
-    Seq.fold (fun (lo,hi) x -> (min x lo, max x hi)) (+99999, -99999)
+let containsPixel image p = image.isInverted <> image.pixels.Contains p
 
-let enhanceImage input =
-    let (xl,xh) = findMinMax (Set.map fst input.cells)
-    let (yl,yh) = findMinMax (Set.map snd input.cells)
+let enhancePoint image =
+    squareAround
+    >> List.map (containsPixel image)
+    >> boolsToInt
+    >> fun c -> image.enhancementRules.Item c = 1
 
-    let invert, check =
-        match input.isInverted, input.bits.Item 0, input.bits.Item 511 with
-        | false, 1, _ -> true, 0
-        | true,  _, 0 -> false, 1
-        | _        -> false, 1
+let findMinMax xs = Seq.min xs, Seq.max xs
 
-    let newCells = [
-        for y in yl-1..yh+1 do
-        for x in xl-1..xh+1 do
-            if enhancePoint (x,y) input = check then yield (x,y) ]
+let boxAround pixels = [
+    let xl,xh = pixels |> Seq.map fst |> findMinMax
+    let yl,yh = pixels |> Seq.map snd |> findMinMax
+    for y in yl-1..yh+1 do
+    for x in xl-1..xh+1 do
+        yield (x,y) ]
 
+// If a square of empty pixels produces a new pixel invert the image.
+// That means all pixels outside the viewed box are considered 'on'
+let shouldInvert image =
+    image.isInverted = false && image.enhancementRules.Item 0 = 1
 
-    { input with cells = Set newCells
-                 isInverted = invert }
+let enhanceImage image =
+    let inverted = shouldInvert image
+    let newPixels =
+        boxAround image.pixels
+        |> List.filter (enhancePoint image >> (<>)inverted)
+    { image with pixels = Set newPixels; isInverted = inverted }
 
-let solve input =
-    input
-    |> parse
-    |> enhanceImage
-    |> enhanceImage
-    |> fun s -> s.cells.Count
+let genericSolve n input =
+    [1..n]
+    |> Seq.fold (fun acc _ -> enhanceImage acc) (parseInput input)
+    |> fun s -> s.pixels.Count
 
-let solve2 input =
-    let rec loop n image = 
-        if n = 0 then image else loop (n-1) (enhanceImage image)
-    loop 50 (parse input)
-    |> fun s -> s.cells.Count
-
+let solve  = genericSolve 2
+let solve2 = genericSolve 50
 
