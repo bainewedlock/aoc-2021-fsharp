@@ -57,32 +57,12 @@ let all =
                 bs.z =! Set [-1;0;1;9]
             }
         ]
-        testList "iterating borders" [
-            test "1 dimension with 3 borders makes 3 cubes" {
-                let bs = 
-                    {
-                        x = Set [10;20]
-                        y = Set [30;50;40]
-                        z = Set [60;70]
-                    }
-                let boxes = mapBoxes id bs |> Set
-                boxes.Count =! 2
-                boxes.Contains {
-                    x0 = 10 ; x1 = 20
-                    y0 = 30 ; y1 = 40
-                    z0 = 60 ; z1 = 70 } =! true
-                boxes.Contains {
-                    x0 = 10 ; x1 = 20
-                    y0 = 40 ; y1 = 50
-                    z0 = 60 ; z1 = 70 } =! true
-            }
-        ]
         testList "solve" [
             test "part 1 demo" {
-                solve demoinput |> sprintf "%A" =! "590784"
+                solve demoinput |> sprintf "%d" =! "590784"
             }
             test "part 2 demo" {
-                solve2 demoinput2 |> sprintf "%A" =! "2758514936282235UL"
+                solve2 demoinput2 |> sprintf "%d" =! "2758514936282235"
             }
         ]
     ]

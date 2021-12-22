@@ -15,13 +15,13 @@ type Cube = {
 type Borders = {
     x : int Set
     y : int Set
-    z : int Set
-}
+    z : int Set }
 
 let parseCommand (line:string) =
     match line.Split " " |> Array.head with
     | "on"  -> On
     | "off" -> Off
+    | _ -> failwithf "unexpected line: %s" line
 
 let parse (line:string) =
     Regex.Matches(line, @"\-?\d+")
@@ -31,7 +31,8 @@ let parse (line:string) =
     |> List.map List.sort
     |> function
     | [[x0;x1];[y0;y1];[z0;z1]] -> 
-        (parseCommand line), {
+        (parseCommand line),
+        {
             x0 = x0
             x1 = x1
             y0 = y0
@@ -47,28 +48,11 @@ let borders (c:Cube seq) =
         z = c |> Seq.collect (fun c -> [c.z0;c.z1+1]) |> Set    
     }
 
-let mapBoxes f (borders:Borders) = seq [
-    let mutable i = 0
-    for (x0,x1) in borders.x |> Seq.pairwise do
-    for (y0,y1) in borders.y |> Seq.pairwise do
-    for (z0,z1) in borders.z |> Seq.pairwise do
-        i <- i + 1
-        if i%1000000=0 then printfn "%d" i
-        yield f
-            {
-                x0 = x0
-                x1 = x1
-                y0 = y0
-                y1 = y1
-                z0 = z0
-                z1 = z1
-            }
-]
-let foldBoxes f (init:int*uint64) (borders:Borders) =
+let foldBorders f init (borders:Borders) =
     let mutable acc = init
-    for (x0,x1) in borders.x |> Seq.pairwise do
-        for (y0,y1) in borders.y |> Seq.pairwise do
-            for (z0,z1) in borders.z |> Seq.pairwise do
+    for x0,x1 in borders.x |> Seq.pairwise do
+        for y0,y1 in borders.y |> Seq.pairwise do
+            for z0,z1 in borders.z |> Seq.pairwise do
                 acc <- f acc {
                         x0 = x0
                         x1 = x1
@@ -78,82 +62,40 @@ let foldBoxes f (init:int*uint64) (borders:Borders) =
                         z1 = z1
                     }
     acc
-    
 
-let area c = (c.x1-c.x0) * (c.y1-c.y0) * (c.z1-c.z0)
-
-let solve (input:string) = 
-    let input = input.Split "\r\n" |> Seq.map parse
-
-    let get x y z =
-        input
-        |> Seq.rev
-        |> Seq.tryPick (fun (cmd, c) -> 
-            if 
-                x >= c.x0 && x <= c.x1 &&
-                y >= c.y0 && y <= c.y1 &&
-                z >= c.z0 && z <= c.z1
-            then Some cmd
-            else None)
-
-    input
-    |> Seq.map snd
-    |> Seq.append [
-        { x0 = -50; x1 = 50; y0 = -50; y1 = 50; z0 = -50; z1 = 50 } ]
-    |> Seq.filter (fun b ->
-        (b.x0 >= -50 && b.x0 <= 50 || b.x1 >= -50 && b.x1 <= 50) &&
-        (b.y0 >= -50 && b.y0 <= 50 || b.y1 >= -50 && b.y1 <= 50) &&
-        (b.z0 >= -50 && b.z0 <= 50 || b.z1 >= -50 && b.z1 <= 50))
-    |> borders
-    |> mapBoxes id
-    |> Seq.filter (fun b ->
-        b.x0 >= -50 && b.x0 <= 50 &&
-        b.y0 >= -50 && b.y0 <= 50 &&
-        b.z0 >= -50 && b.z0 <= 50)
-    |> Seq.sumBy (fun b ->
-        match get b.x0 b.y0 b.z0 with
-        | Some On  -> area b
-        | _        -> 0)
-
-
-let area2 c = 
+let area c = 
     (uint64 (c.x1-c.x0)) *
     (uint64 (c.y1-c.y0)) * 
     (uint64 (c.z1-c.z0))
 
-type Point = int * int * int
-
-let solve2 (input:string) = 
+let genericSolve append fFilter (input:string) = 
     let input = input.Split "\r\n" |> Seq.map parse
     let cache = input |> Seq.rev |> Seq.toList
-    let get x y z =
+    let get b =
         cache
         |> List.tryPick (fun (cmd, c) -> 
-            if 
-                x >= c.x0 && x <= c.x1 &&
-                y >= c.y0 && y <= c.y1 &&
-                z >= c.z0 && z <= c.z1
+            if b.x0 >= c.x0 && b.x0 <= c.x1 &&
+               b.y0 >= c.y0 && b.y0 <= c.y1 &&
+               b.z0 >= c.z0 && b.z0 <= c.z1
             then Some cmd
             else None)
-
-    let get2 b =
-        match get b.x0 b.y0 b.z0 with
-        | Some On  -> area2 b
+        |> function
+        | Some On  -> area b
         | _        -> 0UL
-
-    let folder (cnt, sum) b =
-        (cnt+1), (sum+get2 b)
-
     input
     |> Seq.map snd
+    |> Seq.append append
+    |> Seq.filter fFilter
     |> borders
-    |> foldBoxes folder (0, 0UL)
+    |> foldBorders (fun (cnt,sum) b -> (cnt+1), (sum+get b)) (0, 0UL)
     |> snd
-    //input
-    //|> Seq.map snd
-    //|> borders
-    //|> mapBoxes (fun b -> 
-    //    match get b.x0 b.y0 b.z0 with
-    //    | Some On  -> area2 b
-    //    | _        -> 0UL)
-    //|> Seq.sum
+
+let part1cube = { x0 = -50; x1 = 50; y0 = -50; y1 = 50; z0 = -50; z1 = 50 }
+let part1filter b =
+    (b.x0 >= -50 && b.x0 <= 50 || b.x1 >= -50 && b.x1 <= 50) &&
+    (b.y0 >= -50 && b.y0 <= 50 || b.y1 >= -50 && b.y1 <= 50) &&
+    (b.z0 >= -50 && b.z0 <= 50 || b.z1 >= -50 && b.z1 <= 50)
+
+let solve = genericSolve [part1cube] part1filter
+let solve2 = genericSolve [] (fun _ -> true)
+
