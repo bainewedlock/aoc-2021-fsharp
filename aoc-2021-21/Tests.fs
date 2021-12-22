@@ -48,6 +48,9 @@ let all =
             test "solve demoinput" {
                 solve 4 8 =! 739785
             }
+            test "solve2 demoinput" {
+                solve2 4 8 =! "444356092776315"
+            }
         ]
     ]
 
