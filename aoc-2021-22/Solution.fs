@@ -48,9 +48,12 @@ let borders (c:Cube seq) =
     }
 
 let mapBoxes f (borders:Borders) = seq [
+    let mutable i = 0
     for (x0,x1) in borders.x |> Seq.pairwise do
     for (y0,y1) in borders.y |> Seq.pairwise do
     for (z0,z1) in borders.z |> Seq.pairwise do
+        i <- i + 1
+        if i%1000000=0 then printfn "%d" i
         yield f
             {
                 x0 = x0
@@ -61,6 +64,20 @@ let mapBoxes f (borders:Borders) = seq [
                 z1 = z1
             }
 ]
+let foldBoxes f (init:int*uint64) (borders:Borders) =
+    let mutable acc = init
+    for (x0,x1) in borders.x |> Seq.pairwise do
+        for (y0,y1) in borders.y |> Seq.pairwise do
+            for (z0,z1) in borders.z |> Seq.pairwise do
+                acc <- f acc {
+                        x0 = x0
+                        x1 = x1
+                        y0 = y0
+                        y1 = y1
+                        z0 = z0
+                        z1 = z1
+                    }
+    acc
     
 
 let area c = (c.x1-c.x0) * (c.y1-c.y0) * (c.z1-c.z0)
@@ -118,11 +135,25 @@ let solve2 (input:string) =
                 z >= c.z0 && z <= c.z1
             then Some cmd
             else None)
+
+    let get2 b =
+        match get b.x0 b.y0 b.z0 with
+        | Some On  -> area2 b
+        | _        -> 0UL
+
+    let folder (cnt, sum) b =
+        (cnt+1), (sum+get2 b)
+
     input
     |> Seq.map snd
     |> borders
-    |> mapBoxes (fun b -> 
-        match get b.x0 b.y0 b.z0 with
-        | Some On  -> area2 b
-        | _        -> 0UL)
-    |> Seq.sum
+    |> foldBoxes folder (0, 0UL)
+    |> snd
+    //input
+    //|> Seq.map snd
+    //|> borders
+    //|> mapBoxes (fun b -> 
+    //    match get b.x0 b.y0 b.z0 with
+    //    | Some On  -> area2 b
+    //    | _        -> 0UL)
+    //|> Seq.sum
