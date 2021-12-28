@@ -1,7 +1,6 @@
 module Solution
 
 open System.Collections.Generic
-open System.Diagnostics
 open System
 
 type Point = int * int
@@ -45,52 +44,48 @@ let options grid =
     |> List.map (fun (dx,dy) -> (dx + fst grid.pos, dy + snd grid.pos))
     |> List.filter grid.cells.ContainsKey
 
+let rec heappush v xs = [
+    match xs with
+    | x::rest when x <= v ->
+        yield x
+        yield! heappush v rest
+    | rest ->
+        yield v
+        yield! rest ]
+
+type Prev = Dictionary<Point, Point Option>
+
+type MyQueue = (Risk * Point) list
+
 let dijkstra grid =
-    let mutable risk = -1
-    let Q = HashSet<Point>()
-    let dist = Dictionary<Point, Risk>()
-    let prev = Dictionary<Point, Point Option>()
+    let risk = Dictionary<Point, Risk>()
 
-    for x in grid.cells do
-        dist.Add(x.Key, Int32.MaxValue)
-        prev.Add(x.Key, None)
-        Q.Add(x.Key) |> ignore
-    dist.Item grid.pos <- 0
+    let isBetterAlternative foundRisk atPoint =
+        match risk.TryGetValue atPoint with
+        | true, r when r <= foundRisk -> false
+        | _                           -> true
 
-    while Q.Count > 0 do
-        let u = Q |> Seq.minBy (fun u -> dist.Item u)
-
-        Q.Remove u |> ignore
-
-        if u = grid.goal then
-            Q.Clear()
-            if (prev.Item u).IsSome || u = grid.pos then
-                let mutable S = []
-                let mutable u = Some u
-                while u.IsSome do
-                    S <- u.Value::S
-                    u <- prev.Item (u.Value)
-                risk <- S |> List.sumBy (fun p -> grid.cells.Item p)
-                risk <- risk - (grid.cells.Item grid.pos)
-        else
-            let neighbours =
+    // keep searching notes with next smallest distance
+    let rec loop = function
+        | [] -> failwithf "unexpected"
+        | (ur,u)::queueRest ->
+            if u = grid.goal then () else // found goal, exit
+            let explorePoints =
                 options { grid with pos = u }
-                |> List.filter (fun v ->  Q.Contains v)
-            for v in neighbours do
-                // add both points risk because direction should not matter?
-                let alt =
-                    dist.Item u +
-                    grid.cells.Item v +
-                    grid.cells.Item u
-                if alt < dist.Item v then
-                    dist.Item v <- alt
-                    prev.Item v <- Some u
-    risk
+                |> List.map (fun p -> (ur + grid.cells.Item p, p))
+                |> List.filter (fun (r,p) -> isBetterAlternative r p)
+            let queue2 =
+                explorePoints
+                |> List.fold (fun q p -> heappush p q) queueRest
+            for r,p in explorePoints do
+                risk.Item p <- r
+            loop queue2
+    loop [0, grid.pos]
+    risk.Item grid.goal
 
-
-let duplicate grid =
+let multiplyGrid grid =
     let rec loop i = seq [
-        if i = 0 then () else
+        if i = -1 then () else
         let fx = i % 5
         let fy = i / 5
         yield!
@@ -100,26 +95,19 @@ let duplicate grid =
                 ((x0 + fx * grid.width, y0 + fy * grid.height), p.Value))
         yield! (loop (i-1))
     ]
-    loop 25
-    |> fun c -> { grid with cells = c |> dict}
-
-
+    loop 24
+    |> fun c -> { grid with cells = c |> dict; goal = (499, 499) }
 
 let solve input =
     input
     |> parse
     |> dijkstra
 
-
-
-
 let solve2 input =
     input
     |> parse
-    |> duplicate
+    |> multiplyGrid
     |> dijkstra
-
-
 
 
 

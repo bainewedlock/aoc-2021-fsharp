@@ -38,8 +38,14 @@ let all =
         ]
         testList "part 2" [
             test "duplicateInput" {
-                let grid = demoinput |> parse |> duplicate
+                let grid = demoinput |> parse |> multiplyGrid
                 grid.cells.Count =! 100 * 25
+            }
+        ]
+        testList "priority queue" [
+            test "heappush" {
+                heappush 3 [1;2;4] =! [1;2;3;4]
+                heappush (1,5) [(0,3);(5,5)] =! [(0,3);(1,5);(5,5)]
             }
         ]
     ]
