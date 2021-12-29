@@ -73,6 +73,19 @@ let all =
                 let result = "A||C" |> allLeftMovesFor 1 |> Set
                 result.Count =! 0
             }
+            test "example step 1 is found" {
+                let xs = options "||BA||CD||BC||DA||" |> Set
+                Expect.contains xs ( "||BA|B|CD||C||DA||", 40 ) ""
+            }
+            test "example step 2 is found" {
+                let xs = options "||BA|B|CD||C||DA||" |> Set
+                Expect.contains xs ( "||BA|B|D||CC||DA||", 400 ) ""
+            }
+            test "example step 3 is found" {
+                let xs = options "||BA|B|D||CC||DA||" |> Set
+                Expect.contains xs ( "||BA|B||D|CC||DA||", 3000 ) ""
+                // fails because D needs to take two steps out of the sideroom ^_^ bad model d'oh
+            }
         ]
     ]
 
