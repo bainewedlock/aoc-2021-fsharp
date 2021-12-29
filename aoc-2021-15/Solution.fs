@@ -36,26 +36,24 @@ let neighbours (x,y) (cells:Cells) =
 
 type Path = { risk : int; point : Point }
 
+let addToSet (s:Point Set) (p:Path) = s.Add p.point
+let addToHeap (h:Heap<Path>) (p:Path) = h.Insert p
+
 let dijkstra grid =
-    let seen = HashSet<Point>()
-    let queue = [{ risk=0; point=0,0 }]
-    let heap = Heap<Path>(false, 0, HeapData.E)
-    let heap = heap.Insert { risk=0; point=0,0 }
-    seen.Add((0,0)) |> ignore
-    let rec loop (heap:Heap<Path>) =
-        if queue = [] then failwithf "unexpected" else
-        let current = heap.Head
-        if current.point = grid.goal then current.risk else
+    let seen = Set [(0,0)]
+    let heap = Heap(false, 0, HeapData.E).Insert { risk=0; point=0,0 }
+    let rec loop (seen:Point Set) (heap:Heap<Path>) =
+        let cur = heap.Head
+        if cur.point = grid.goal then cur.risk else
         let visit =
-            neighbours current.point grid.cells
+            neighbours cur.point grid.cells
             |> List.map (fun p ->
-                { risk=current.risk + grid.cells.Item p; point = p })
+                { risk=cur.risk + grid.cells.Item p; point = p })
             |> List.filter (fun p -> not <| seen.Contains(p.point))
-        for p in visit do seen.Add(p.point) |> ignore
-        visit
-        |> List.fold (fun (h:Heap<Path>) v -> h.Insert v) (heap.Tail())
-        |> loop
-    loop heap
+        let seen' = visit |> List.fold addToSet seen
+        let heap' = visit |> List.fold addToHeap (heap.Tail())
+        loop seen' heap'
+    loop seen heap
 
 let rec wrap x = if x > 9 then wrap (x-9) else x
 
