@@ -8,7 +8,6 @@ type Cells = IDictionary<Point, int>
 
 type Input = {
     cells : Cells
-    pos   : Point
     goal  : Point
     width : int
     height : int }
@@ -23,36 +22,38 @@ let parse (input:string) =
     let my = cells |> Seq.map (fst >> snd) |> Seq.max
     {
         cells  = Map cells
-        pos    = 0,0
         goal   = mx,my
         width  = mx+1
         height = my+1
     }
+
+type WeightedPoint = { risk : int; point : Point }
+type Seen = Point Set
+type Queue = Heap<WeightedPoint>
 
 let neighbours (x,y) (cells:Cells) =
     [1,0; 0,1; -1,0; 0,-1]
     |> List.map (fun (dx,dy) -> (dx + x, dy + y))
     |> List.filter cells.ContainsKey
 
-type Path = { risk : int; point : Point }
+let calcVisit wp cells (seen:Point Set) =
+    neighbours wp.point cells
+    |> List.filter (seen.Contains >> not)
+    |> List.map (fun p -> { risk=wp.risk + cells.Item p; point = p })
 
-let addToSet (s:Point Set) (p:Path) = s.Add p.point
-let addToHeap (h:Heap<Path>) (p:Path) = h.Insert p
+let addToSeen (s:Seen) p = s.Add p.point
+let addToQueue (h:Queue) p = h.Insert p
 
-let dijkstra grid =
+let dijkstra input =
     let seen = Set [(0,0)]
     let heap = Heap(false, 0, HeapData.E).Insert { risk=0; point=0,0 }
-    let rec loop (seen:Point Set) (heap:Heap<Path>) =
-        let cur = heap.Head
-        if cur.point = grid.goal then cur.risk else
-        let visit =
-            neighbours cur.point grid.cells
-            |> List.map (fun p ->
-                { risk=cur.risk + grid.cells.Item p; point = p })
-            |> List.filter (fun p -> not <| seen.Contains(p.point))
-        let seen' = visit |> List.fold addToSet seen
-        let heap' = visit |> List.fold addToHeap (heap.Tail())
-        loop seen' heap'
+    let rec loop (seen:Point Set) (queue:Heap<WeightedPoint>) =
+        let u = queue.Head
+        if u.point = input.goal then u.risk else
+        let visit = calcVisit u input.cells seen
+        loop
+            (visit |> List.fold addToSeen seen)
+            (visit |> List.fold addToQueue (queue.Tail()))
     loop seen heap
 
 let rec wrap x = if x > 9 then wrap (x-9) else x

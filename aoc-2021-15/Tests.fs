@@ -17,12 +17,11 @@ let all =
                 input.cells.Item (0,2) =! 2
                 input.cells.Item (9,9) =! 1
                 input.cells.Item (9,7) =! 9
-                input.pos =! (0,0)
                 input.goal =! (9,9)
             }
             test "neighbours" {
-                let grid = { parse demoinput with pos = (0,1)}
-                let opts = neighbours (0,1) grid.cells
+                let input = parse demoinput
+                let opts = neighbours (0,1) input.cells
                 opts.Length =! 3
                 opts.[0] =! (1,1)
                 opts.[1] =! (0,2)
