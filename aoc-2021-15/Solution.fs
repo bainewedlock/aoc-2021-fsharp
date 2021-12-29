@@ -1,6 +1,7 @@
 module Solution
 
 open System.Collections.Generic
+open FSharpx.Collections
 
 type Point = int * int
 type Cells = IDictionary<Point, int>
@@ -36,14 +37,14 @@ let neighbours (x,y) (cells:Cells) =
 type Path = { risk : int; point : Point }
 
 let dijkstra grid =
-    let queue = new List<Path>()
     let seen = HashSet<Point>()
-    queue.Add { risk=0; point=0,0 }
+    let queue = [{ risk=0; point=0,0 }]
+    let heap = Heap<Path>(false, 0, HeapData.E)
+    let heap = heap.Insert { risk=0; point=0,0 }
     seen.Add((0,0)) |> ignore
-    let rec loop () =
-        if queue.Count = 0 then failwithf "unexpected" else
-        let current = queue.[0]
-        queue.RemoveAt 0
+    let rec loop (heap:Heap<Path>) =
+        if queue = [] then failwithf "unexpected" else
+        let current = heap.Head
         if current.point = grid.goal then current.risk else
         let visit =
             neighbours current.point grid.cells
@@ -51,10 +52,10 @@ let dijkstra grid =
                 { risk=current.risk + grid.cells.Item p; point = p })
             |> List.filter (fun p -> not <| seen.Contains(p.point))
         for p in visit do seen.Add(p.point) |> ignore
-        queue.AddRange(visit)
-        queue.Sort()
-        loop ()
-    loop ()
+        visit
+        |> List.fold (fun (h:Heap<Path>) v -> h.Insert v) (heap.Tail())
+        |> loop
+    loop heap
 
 let rec wrap x = if x > 9 then wrap (x-9) else x
 
