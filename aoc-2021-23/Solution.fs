@@ -28,12 +28,13 @@ let updateAt vi v xs = [
 let updateElement key f st = 
   st |> List.map (fun (k, v) -> if k = key then k, f v else k, v)
 
-let isSideroom = function
-    | 2 -> true
-    | 4 -> true
-    | 6 -> true
-    | 8 -> true
-    | _ -> false
+let siderooms = Map [
+    2, 'A'
+    4, 'B'
+    6, 'C'
+    8, 'D' ]
+
+let isSideroom = siderooms.ContainsKey
 
 let costFor = function
     | 'A' -> 1
@@ -41,7 +42,16 @@ let costFor = function
     | 'C' -> 100
     | 'D' -> 1000
 
-let noOtherContent c = List.exists ((<>)c) >> not
+let checkMove room pod x =
+    let others = List.filter ((<>)pod) room
+    if Map.tryFind x siderooms = Some pod && others = [] then
+        true, true
+    else if siderooms.ContainsKey x then
+        false, true
+    else if room = [] then
+        true, true
+    else
+        false, false
 
 let allMovesFor dir i (s:string) =
     let state = parseState s
@@ -55,10 +65,11 @@ let allMovesFor dir i (s:string) =
         if x + dir < 0 then () else
         if x + dir = state.Length then () else
         let x = x + dir
-        if noOtherContent pod state.[x] then
+        let canEnter, canPass = checkMove state.[x] pod x
+        if canEnter then
             let dc = if isSideroom x then 2 else 1
             yield printState (moveTo x), (cost+dc) * (costFor pod)
-        yield! loop (cost+1) x
+        if canPass then yield! loop (cost+1) x
     ]
     let initialcost = if isSideroom i then 1 else 0
     loop initialcost i

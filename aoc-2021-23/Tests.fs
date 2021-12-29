@@ -24,6 +24,7 @@ let all =
                 result.Item "D||BA||CD||BC||A||" =! 9000
                 result.Item "||BA||CD||BC||A||D" =! 3000
                 result.Item "||BA||D||BC||DA|C|" =! 600
+                result.Count =! 28 // regression test
             }
             test "parse state" {
                 parseState "||BA||CD" =! [[];[];['B';'A'];[];['C';'D']]
@@ -53,19 +54,19 @@ let all =
                 result.Contains ( "A|||", 3 ) =! true
                 result.Count =! 3
             }
-            test "pod can move left to sideroom if same content" {
-                let result = "||A|A" |> allLeftMovesFor 3 |> Set
-                result.Contains ( "||AA|", 2 ) =! true
+            test "pod can move left to target sideroom" {
+                let result = "|||A" |> allLeftMovesFor 3 |> Set
+                result.Contains ( "||A|", 2 ) =! true
             }
-            test "pod cant move left to sideroom if other content" {
-                let result = "||B|A" |> allLeftMovesFor 3 |> Set
-                result.Contains ( "||AA|", 2 ) =! false
+            test "pod cant move left to wrong sideroom" {
+                let result = "|||B" |> allLeftMovesFor 3 |> Map
+                result.ContainsKey "||B|" =! false
             }
             test "pod can move right to/over sideroom if empty" {
-                let result = "B|||" |> allRightMovesFor 0 |> Set
-                result.Contains ( "|B||", 10 ) =! true
-                result.Contains ( "||B|", 30 ) =! true
-                result.Contains ( "|||B", 30 ) =! true
+                let result = "||B|||" |> allRightMovesFor 2 |> Set
+                result.Contains ( "|||B||", 20 ) =! true
+                result.Contains ( "||||B|", 40 ) =! true
+                result.Contains ( "|||||B", 40 ) =! true
                 result.Count =! 3
             }
             test "no left moves if no pod" {
