@@ -46,7 +46,7 @@ let addToQueue (h:Queue) p = h.Insert p
 
 let dijkstra input =
     let seen = Set [(0,0)]
-    let heap = Heap(false, 0, HeapData.E).Insert { risk=0; point=0,0 }
+    let queue = Heap(false, 0, HeapData.E).Insert { risk=0; point=0,0 }
     let rec loop (seen:Point Set) (queue:Heap<WeightedPoint>) =
         let u = queue.Head
         if u.point = input.goal then u.risk else
@@ -54,7 +54,7 @@ let dijkstra input =
         loop
             (visit |> List.fold addToSeen seen)
             (visit |> List.fold addToQueue (queue.Tail()))
-    loop seen heap
+    loop seen queue
 
 let rec wrap x = if x > 9 then wrap (x-9) else x
 
