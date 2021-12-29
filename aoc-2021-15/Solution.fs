@@ -57,46 +57,51 @@ type Prev = Dictionary<Point, Point Option>
 
 type MyQueue = (Risk * Point) list
 
+type Path(risk:int, point:Point) =
+    member this.risk = risk
+    member this.point = point
+    interface IComparable<Path> with
+        member this.CompareTo(other: Path): int = 
+            let comp = this.risk.CompareTo(other.risk)
+            if (comp <> 0) then comp else
+            (fst other.point + snd other.point).CompareTo(
+             fst this.point + snd this.point)
+
 let dijkstra grid =
-    let risk = Dictionary<Point, Risk>()
+    let queue = new List<Path>()
+    let seen = HashSet<Point>()
+    queue.Add(Path(0, (0,0)))
+    seen.Add((0,0)) |> ignore
+    let rec loop () =
+        if queue.Count = 0 then failwithf "unexpected" else
+        let current = queue.[0]
+        queue.RemoveAt 0
+        if current.point = grid.goal then current.risk else
+        let visit =
+            options { grid with pos = current.point }
+            |> List.map (fun p -> Path(current.risk + grid.cells.Item p, p))
+            |> List.filter (fun p -> not <| seen.Contains(p.point))
+        for v in visit do seen.Add(v.point) |> ignore
+        queue.AddRange(visit)
+        queue.Sort()
+        loop ()
+    loop ()
 
-    let isBetterAlternative foundRisk atPoint =
-        match risk.TryGetValue atPoint with
-        | true, r when r <= foundRisk -> false
-        | _                           -> true
-
-    // keep searching notes with next smallest distance
-    let rec loop = function
-        | [] -> failwithf "unexpected"
-        | (ur,u)::queueRest ->
-            if u = grid.goal then () else // found goal, exit
-            let explorePoints =
-                options { grid with pos = u }
-                |> List.map (fun p -> (ur + grid.cells.Item p, p))
-                |> List.filter (fun (r,p) -> isBetterAlternative r p)
-            let queue2 =
-                explorePoints
-                |> List.fold (fun q p -> heappush p q) queueRest
-            for r,p in explorePoints do
-                risk.Item p <- r
-            loop queue2
-    loop [0, grid.pos]
-    risk.Item grid.goal
+let rec wrap x =
+    if x > 9 then wrap (x-9) else
+    x
 
 let multiplyGrid grid =
-    let rec loop i = seq [
-        if i = -1 then () else
-        let fx = i % 5
-        let fy = i / 5
-        yield!
-            grid.cells
-            |> Seq.map (fun p ->
-                let x0, y0 = p.Key
-                ((x0 + fx * grid.width, y0 + fy * grid.height), p.Value))
-        yield! (loop (i-1))
-    ]
-    loop 24
-    |> fun c -> { grid with cells = c |> dict; goal = (499, 499) }
+    let cells = seq [
+        for fx in 0..4 do
+        for fy in 0..4 do
+        for c in grid.cells do
+            let x0, y0 = c.Key
+            let p = x0 + fx*grid.width, y0+fy*grid.height
+            let v = c.Value + fx + fy |> wrap
+            yield p, v ]
+    let u = grid.width * 5 - 1
+    { grid with cells = dict cells; goal = (u,u) }
 
 let solve input =
     input

@@ -37,9 +37,17 @@ let all =
             }
         ]
         testList "part 2" [
-            test "duplicateInput" {
+            test "multiplyGrid" {
                 let grid = demoinput |> parse |> multiplyGrid
                 grid.cells.Count =! 100 * 25
+                grid.cells.Item (0,0) =! 1
+                grid.cells.Item (47,49) =! 4
+                grid.cells.Item (48,49) =! 7
+                grid.cells.Item (49,49) =! 9
+                grid.goal =! (49,49)
+            }
+            test "solve demoinput" {
+                solve2 demoinput =! 315
             }
         ]
         testList "priority queue" [
