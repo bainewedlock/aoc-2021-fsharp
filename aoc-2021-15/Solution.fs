@@ -1,76 +1,44 @@
 module Solution
 
 open System.Collections.Generic
-open System
 
 type Point = int * int
+type Cells = IDictionary<Point, int>
 
-type Grid = {
-    cells : IDictionary<Point, int>
+type Input = {
+    cells : Cells
     pos   : Point
-    visited : Point Set
-    risk : int
     goal  : Point
     width : int
-    height : int
-}
+    height : int }
 
-type Risk = int
-type Graph = Map<Point, Risk>
+let parseLine (y:int,line:string) =
+    let parseChar (x, c) = (x,y), c|>string|>int
+    Seq.indexed line |> Seq.map parseChar
 
 let parse (input:string) =
-    let cells =
-        input.Split "\r\n"
-        |> Seq.indexed
-        |> Seq.collect (fun (y,line) ->
-            Seq.indexed line
-            |> Seq.map (fun (x, c) -> (x, y), int (string c)))
+    let cells = input.Split "\r\n" |> Seq.indexed |> Seq.collect parseLine
     let mx = cells |> Seq.map (fst >> fst) |> Seq.max
     let my = cells |> Seq.map (fst >> snd) |> Seq.max
     {
-        cells = Map cells
-        pos   = (0,0)
-        visited = Set [(0,0)]
-        risk = 0
-        goal = (mx,my)
-        width = mx+1
+        cells  = Map cells
+        pos    = 0,0
+        goal   = mx,my
+        width  = mx+1
         height = my+1
     }
 
-let orthogonal = [1,0; 0,1; -1,0; 0,-1]
+let neighbours (x,y) (cells:Cells) =
+    [1,0; 0,1; -1,0; 0,-1]
+    |> List.map (fun (dx,dy) -> (dx + x, dy + y))
+    |> List.filter cells.ContainsKey
 
-let options grid =
-    orthogonal
-    |> List.map (fun (dx,dy) -> (dx + fst grid.pos, dy + snd grid.pos))
-    |> List.filter grid.cells.ContainsKey
-
-let rec heappush v xs = [
-    match xs with
-    | x::rest when x <= v ->
-        yield x
-        yield! heappush v rest
-    | rest ->
-        yield v
-        yield! rest ]
-
-type Prev = Dictionary<Point, Point Option>
-
-type MyQueue = (Risk * Point) list
-
-type Path(risk:int, point:Point) =
-    member this.risk = risk
-    member this.point = point
-    interface IComparable<Path> with
-        member this.CompareTo(other: Path): int = 
-            let comp = this.risk.CompareTo(other.risk)
-            if (comp <> 0) then comp else
-            (fst other.point + snd other.point).CompareTo(
-             fst this.point + snd this.point)
+type Path = { risk : int; point : Point }
 
 let dijkstra grid =
     let queue = new List<Path>()
     let seen = HashSet<Point>()
-    queue.Add(Path(0, (0,0)))
+    queue.Add { risk=0; point=0,0 }
     seen.Add((0,0)) |> ignore
     let rec loop () =
         if queue.Count = 0 then failwithf "unexpected" else
@@ -78,18 +46,17 @@ let dijkstra grid =
         queue.RemoveAt 0
         if current.point = grid.goal then current.risk else
         let visit =
-            options { grid with pos = current.point }
-            |> List.map (fun p -> Path(current.risk + grid.cells.Item p, p))
+            neighbours current.point grid.cells
+            |> List.map (fun p ->
+                { risk=current.risk + grid.cells.Item p; point = p })
             |> List.filter (fun p -> not <| seen.Contains(p.point))
-        for v in visit do seen.Add(v.point) |> ignore
+        for p in visit do seen.Add(p.point) |> ignore
         queue.AddRange(visit)
         queue.Sort()
         loop ()
     loop ()
 
-let rec wrap x =
-    if x > 9 then wrap (x-9) else
-    x
+let rec wrap x = if x > 9 then wrap (x-9) else x
 
 let multiplyGrid grid =
     let cells = seq [
@@ -113,10 +80,3 @@ let solve2 input =
     |> parse
     |> multiplyGrid
     |> dijkstra
-
-
-
-
-    
-
-
