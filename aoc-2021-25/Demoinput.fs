@@ -1,4 +1,12 @@
 module Demoinput
 
-let demoinput = ""
+let demoinput = "v...>>.vv>
+.vv>>.vv..
+>>.>v>...v
+>>v>>.>.v.
+v>v.vv.v..
+>.>>..v...
+.vv..>.>v.
+v.v..>>v.v
+....v..v.>"
 
